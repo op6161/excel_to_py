@@ -1,6 +1,69 @@
 from .excel_module import DataHandler
+from openpyxl.cell.cell import MergedCell
 
 class ExtendHandler(DataHandler):
+    def __init__(self, excel_data, sheet_name=None, fill_dummy_value=None, dummy_value="MERGED"):
+        super().__init__(excel_data, sheet_name)
+        self.fill_dummy_value = fill_dummy_value
+        self.dummy_value = dummy_value
+
+    def _get_cell_value_from_merged_range(self, sheet, cell):
+        """
+        セルがMergedCellの場合、その結合範囲の先頭セルの値を返します。
+        それ以外の場合は、セルの値をそのまま返します。
+        """
+        if isinstance(cell, MergedCell):
+            for merged_range in sheet.merged_cells.ranges:
+                if cell.coordinate in merged_range:
+                    return sheet[merged_range.start_cell.coordinate].value
+        return cell.value
+
+    def _get_raw_cell_value(self, sheet, cell):
+        """
+        DataHandlerの_get_raw_cell_valueをオーバーライドし、
+        結合されたセルとオプションのダミー値を処理します。
+        """
+        value = self._get_cell_value_from_merged_range(sheet, cell)
+        
+        # 병합된 셀 처리 후에도 값이 None이고, 더미 값 채우기가 활성화된 경우
+        if value is None and self.fill_dummy_value:
+            return self.dummy_value
+        
+        return value
+
+    def _get_cell_value_with_merged_fill(self, sheet, cell):
+        """
+        병합된 셀의 값을 가져오는 내부 유틸리티 함수 (한국어 설명)
+        MergedCellであれば、その結合された範囲の左上隅のセルの値を返す。
+        それ以外であれば、セルの値をそのまま返す。
+        self.fill_merged_cells이 True일 경우, 병합된 셀의 빈 공간을 첫 번째 셀 값으로 채웁니다.
+        """
+        if isinstance(cell, MergedCell):
+            for merged_range in sheet.merged_cells.ranges:
+                if cell.coordinate in merged_range:
+                    return sheet[merged_range.start_cell.coordinate].value
+        
+        # fill_merged_cells가 True이고, 셀 값이 None 또는 빈 문자열이면 dummy_value로 채움
+        # 단, MergedCell이 아니면서 원래 비어있던 셀은 dummy_value로 채우지 않도록 조건 추가
+        # 즉, 병합된 셀이 'None'이 되는 경우만 해당 더미 값을 적용하도록 합니다.
+        if self.fill_merged_cells and cell.value is None: # None만 처리하도록 명확히
+            # MergedCell이 아닌데도 None인 경우 (원래 빈 셀)는 채우지 않음
+            # 이 로직은 `_get_merged_cell_value`가 처리하지 못한 'None'을 위한 것이며,
+            # MergedCell이지만 첫 번째 셀이 이미 None인 경우도 처리할 수 있습니다.
+            return self.dummy_value if self.dummy_value is not None else cell.value
+        
+        return cell.value
+
+    def _get_cell_value_with_dummy_fill(self, sheet, cell):
+        """
+        _get_cell_value_with_merged_fill을 호출하고, 그 결과가 None일 때 dummy_value로 채우는 함수.
+        이 함수가 최종적으로 외부로 값을 반환할 때 사용됩니다.
+        """
+        value = self._get_cell_value_with_merged_fill(sheet, cell)
+        if value is None and self.fill_merged_cells:
+            return self.dummy_value
+        return value
+
     def get_block(self, sheet_name=None):
         """
 
