@@ -8,14 +8,14 @@ if __name__ == "__main__":
     data = ex.ExcelData(file_path)
     handler = ex.DataHandler(data)
     handler.set_sheet("Sheet1")
-    cel1 = handler.get_cell(cell = "A1")
+    cel1 = handler.get_cell(cell_coordinate= "A1")
     sheet1 = handler.get_sheet()
-    cel2 = handler.get_cell(cell = "A5")
+    cel2 = handler.get_cell(cell_coordinate= "A5")
 
     handler2 = ext.ExtendHandler(data)
     handler2.set_sheet("Sheet1")
 
     blocks = handler2.get_block()
-    
+
     for block in blocks:
         print("block", block)
